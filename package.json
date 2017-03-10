@@ -4,11 +4,11 @@
   "description": "A simple web interface to manage microblog content",
   "main": "index.js",
   "scripts": {
-    "start": "babel-watch src/server.js",
-    "compile:server": "babel ./src/server.js --preset es2015-node -o ./server.js",
-    "compile": "watchify src/js/main.js -t babelify -t vueify -o ./js/main.js",
-    "lint": "eslint src",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "npm run build:watch & npm run browsersync",
+    "browsersync": "browser-sync start -f ./docs -s ./docs",
+    "build": "browserify src/main.js -t babelify -t vueify -o ./docs/js/main.js && cp index.html docs/",
+    "build:watch": "watchify src/main.js -t babelify -t vueify -o ./docs/js/main.js",
+    "lint": "eslint src"
   },
   "repository": {
     "type": "git",
@@ -37,6 +37,7 @@
     "babel-preset-es2015-node": "^6.1.1",
     "babel-watch": "^2.0.6",
     "babelify": "^7.3.0",
+    "browser-sync": "^2.18.8",
     "eslint": "^3.16.0",
     "eslint-config-garthdb": "^0.2.0",
     "vueify": "^9.4.0",

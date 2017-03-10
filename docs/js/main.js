@@ -7724,18 +7724,20 @@ module.exports = Vue$2;
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.fetchPostsIfNeeded = exports.RECEIVE_CONTENT = exports.REQUEST_CONTENT = exports.INVALIDATE_PATH = exports.SELECT_PATH = undefined;
+exports.fetchContentIfNeeded = exports.RECEIVE_FILELIST = exports.RECEIVE_CONTENT = exports.REQUEST_CONTENT = exports.INVALIDATE_PATH = exports.SELECT_PATH = undefined;
 exports.selectPath = selectPath;
 exports.invalidatePath = invalidatePath;
 exports.requestContent = requestContent;
 exports.receiveContent = receiveContent;
+exports.recieveFilelist = recieveFilelist;
 
 var _types = require('../types/');
 
 var SELECT_PATH = exports.SELECT_PATH = 'SELECT_PATH';
 var INVALIDATE_PATH = exports.INVALIDATE_PATH = 'INVALIDATE_DIRECTORY';
-var REQUEST_CONTENT = exports.REQUEST_CONTENT = 'REQUEST_CONTENTS';
-var RECEIVE_CONTENT = exports.RECEIVE_CONTENT = 'RECEIVE_CONTENTS';
+var REQUEST_CONTENT = exports.REQUEST_CONTENT = 'REQUEST_CONTENT';
+var RECEIVE_CONTENT = exports.RECEIVE_CONTENT = 'RECEIVE_CONTENT';
+var RECEIVE_FILELIST = exports.RECEIVE_FILELIST = 'RECEIVE_FILELIST';
 
 function selectPath(path) {
   return {
@@ -7771,22 +7773,36 @@ function _parseContent(data, path) {
   return result;
 }
 
-function receiveContent(path, data) {
+function receiveContent(path, json) {
   return {
     type: RECEIVE_CONTENT,
     path: path,
-    content: _parseContent(data, path),
+    content: json,
     receivedAt: Date.now()
   };
 }
+
+function recieveFilelist(path, filelist) {
+  return {
+    type: RECEIVE_FILELIST,
+    path: path,
+    filelist: filelist,
+    receivedAt: Date.now()
+  };
+}
+// content: _parseContent(data, path),
 
 var fetchContent = function fetchContent(path) {
   return function (dispatch) {
     dispatch(requestContent(path));
     return fetch('https://api.github.com/repos/smithtimmytim/jekyll-microblog/contents/' + path).then(function (response) {
       return response.json();
-    }).then(function (json) {
-      return dispatch(receiveContent(path, json));
+    }).then(function (data) {
+      if (Array.isArray(data)) {
+        var filelist = new _types.Filelist(data, path);
+        dispatch(recieveFilelist(path, filelist));
+      }
+      // dispatch(receiveContent(path, data))
     });
   };
 };
@@ -7802,7 +7818,7 @@ var shouldFetchContent = function shouldFetchContent(state, path) {
   return content.didInvalidate;
 };
 
-var fetchPostsIfNeeded = exports.fetchPostsIfNeeded = function fetchPostsIfNeeded(path) {
+var fetchContentIfNeeded = exports.fetchContentIfNeeded = function fetchContentIfNeeded(path) {
   return function (dispatch, getState) {
     if (shouldFetchContent(getState(), path)) {
       return dispatch(fetchContent(path));
@@ -7811,7 +7827,7 @@ var fetchPostsIfNeeded = exports.fetchPostsIfNeeded = function fetchPostsIfNeede
   };
 };
 
-},{"../types/":32}],29:[function(require,module,exports){
+},{"../types/":33}],29:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -7832,9 +7848,9 @@ var _reduxThunk = require('redux-thunk');
 
 var _reduxThunk2 = _interopRequireDefault(_reduxThunk);
 
-var _githubFiles = require('./reducers/github-files');
+var _reducers = require('./reducers');
 
-var _githubFiles2 = _interopRequireDefault(_githubFiles);
+var _reducers2 = _interopRequireDefault(_reducers);
 
 var _actions = require('./actions');
 
@@ -7847,7 +7863,7 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 var createStoreWithMiddleware = (0, _redux.applyMiddleware)(_reduxThunk2.default)(_redux.createStore);
 
 /* eslint-disable no-underscore-dangle */
-var reduxStore = createStoreWithMiddleware(_githubFiles2.default, window.__REDUX_DEVTOOLS_EXTENSION__ && window.__REDUX_DEVTOOLS_EXTENSION__());
+var reduxStore = createStoreWithMiddleware(_reducers2.default, window.__REDUX_DEVTOOLS_EXTENSION__ && window.__REDUX_DEVTOOLS_EXTENSION__());
 /* eslint-enable */
 
 var store = new _revue2.default(_vue2.default, reduxStore, actions);
@@ -7859,7 +7875,7 @@ if (typeof __DEV__ !== 'undefined' && __DEV__) {
 
 exports.default = store;
 
-},{"./actions":28,"./reducers/github-files":31,"redux":20,"redux-thunk":14,"revue":22,"vue":27}],30:[function(require,module,exports){
+},{"./actions":28,"./reducers":32,"redux":20,"redux-thunk":14,"revue":22,"vue":27}],30:[function(require,module,exports){
 'use strict';
 
 var _vue = require('vue');
@@ -7885,24 +7901,25 @@ new _vue2.default({
     return h(_home2.default);
   },
   created: function created() {
-    _filestore2.default.dispatch((0, _actions.fetchPostsIfNeeded)('_posts/'));
+    var initialPath = '_posts/';
+    _filestore2.default.dispatch((0, _actions.selectPath)(initialPath));
+    _filestore2.default.dispatch((0, _actions.fetchContentIfNeeded)(initialPath));
   }
 });
 
-},{"./actions":28,"./filestore.js":29,"./views/home.vue":33,"vue":27}],31:[function(require,module,exports){
+},{"./actions":28,"./filestore.js":29,"./views/home.vue":34,"vue":27}],31:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-
-var _redux = require('redux');
+exports.contentByPath = exports.content = exports.selectedPath = undefined;
 
 var _actions = require('../actions');
 
 function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
 
-var selectedPath = function selectedPath() {
+var selectedPath = exports.selectedPath = function selectedPath() {
   var state = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : '';
   var action = arguments[1];
 
@@ -7914,11 +7931,12 @@ var selectedPath = function selectedPath() {
   }
 };
 
-var content = function content() {
+var content = exports.content = function content() {
   var state = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {
     isFetching: false,
     didInvalidate: false,
-    items: []
+    content: false,
+    files: []
   };
   var action = arguments[1];
 
@@ -7927,16 +7945,24 @@ var content = function content() {
       return Object.assign({}, state, {
         didInvalidate: true
       });
-    case _actions.REQUEST_FILELIST:
+    case _actions.REQUEST_CONTENT:
       return Object.assign({}, state, {
         isFetching: true,
         didInvalidate: false
+      });
+    case _actions.RECEIVE_CONTENT:
+      return Object.assign({}, state, {
+        isFetching: false,
+        didInvalidate: false,
+        content: action.content,
+        lastUpdated: action.receivedAt
       });
     case _actions.RECEIVE_FILELIST:
       return Object.assign({}, state, {
         isFetching: false,
         didInvalidate: false,
-        items: action.files,
+        filelist: action.filelist,
+        files: action.filelist.files,
         lastUpdated: action.receivedAt
       });
     default:
@@ -7944,28 +7970,41 @@ var content = function content() {
   }
 };
 
-var contentByPath = function contentByPath() {
+var contentByPath = exports.contentByPath = function contentByPath() {
   var state = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
   var action = arguments[1];
 
   switch (action.type) {
     case _actions.INVALIDATE_PATH:
-    case _actions.RECEIVE_FILELIST:
-    case _actions.REQUEST_FILELIST:
+    case _actions.RECEIVE_CONTENT:
+    case _actions.REQUEST_CONTENT:
       return Object.assign({}, state, _defineProperty({}, action.path, content(state[action.path], action)));
+    case _actions.RECEIVE_FILELIST:
+      return Object.assign({}, state, _defineProperty({}, action.path, content(state[action.patch], action)));
     default:
       return state;
   }
 };
 
+},{"../actions":28}],32:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _redux = require('redux');
+
+var _files = require('./files');
+
 var rootReducer = (0, _redux.combineReducers)({
-  selectedPath: selectedPath,
-  contentByPath: contentByPath
+  selectedPath: _files.selectedPath,
+  contentByPath: _files.contentByPath
 });
 
 exports.default = rootReducer;
 
-},{"../actions":28,"redux":20}],32:[function(require,module,exports){
+},{"./files":31,"redux":20}],33:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -7996,7 +8035,7 @@ var PathError = exports.PathError = function PathError(result) {
   Object.assign(this, result);
 };
 
-},{}],33:[function(require,module,exports){
+},{}],34:[function(require,module,exports){
 ;(function(){
 'use strict';
 
@@ -8010,14 +8049,13 @@ var _filestore2 = _interopRequireDefault(_filestore);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-function _formatMessage(data) {
-  console.log(data);
-}
-
 exports.default = {
   data: function data() {
+    var selectedPath = this.$select('selectedPath');
     return {
-      msg: _formatMessage(this.$select())
+      store: _filestore2.default,
+      selectedPath: selectedPath,
+      content: this.$select('contentByPath.' + selectedPath)
     };
   }
 };
@@ -8025,16 +8063,16 @@ exports.default = {
 if (module.exports.__esModule) module.exports = module.exports.default
 var __vue__options__ = (typeof module.exports === "function"? module.exports.options: module.exports)
 if (__vue__options__.functional) {console.error("[vueify] functional components are not supported and should be defined in plain js files using render functions.")}
-__vue__options__.render = function render () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _c('div',{attrs:{"id":"player-wrapper"}},[_vm._v("\n  "+_vm._s(_vm.msg)+"\n")])}
-__vue__options__.staticRenderFns = []
+__vue__options__.render = function render () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _vm._m(0)}
+__vue__options__.staticRenderFns = [function render () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _c('div',[_c('h2',[_vm._v("New Files")])])}]
 if (module.hot) {(function () {  var hotAPI = require("vue-hot-reload-api")
   hotAPI.install(require("vue"), true)
   if (!hotAPI.compatible) return
   module.hot.accept()
   if (!module.hot.data) {
-    hotAPI.createRecord("data-v-11f78a7c", __vue__options__)
+    hotAPI.createRecord("data-v-34d77a34", __vue__options__)
   } else {
-    hotAPI.rerender("data-v-11f78a7c", __vue__options__)
+    hotAPI.reload("data-v-34d77a34", __vue__options__)
   }
 })()}
 },{"../filestore":29,"vue":27,"vue-hot-reload-api":26}]},{},[30]);

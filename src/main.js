@@ -1,13 +1,15 @@
 import Vue from 'vue';
 import Home from './views/home.vue';
 import store from './filestore.js';
-import { fetchPostsIfNeeded } from './actions';
+import { selectPath, fetchContentIfNeeded } from './actions';
 
 // eslint-disable-next-line no-new
 new Vue({
   el: '#app',
   render: (h) => h(Home),
   created: () => {
-    store.dispatch(fetchPostsIfNeeded('_posts/'));
+    const initialPath = '_posts/';
+    store.dispatch(selectPath(initialPath));
+    store.dispatch(fetchContentIfNeeded(initialPath));
   },
 });

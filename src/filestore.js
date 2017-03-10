@@ -3,7 +3,7 @@ import Revue from 'revue';
 import { createStore, applyMiddleware } from 'redux';
 import thunk from 'redux-thunk';
 
-import fileReducer from './reducers/github-files';
+import reducers from './reducers';
 
 import * as actions from './actions';
 
@@ -13,7 +13,7 @@ const createStoreWithMiddleware = applyMiddleware(
 
 /* eslint-disable no-underscore-dangle */
 const reduxStore = createStoreWithMiddleware(
-  fileReducer,
+  reducers,
   window.__REDUX_DEVTOOLS_EXTENSION__ && window.__REDUX_DEVTOOLS_EXTENSION__()
 );
 /* eslint-enable */
